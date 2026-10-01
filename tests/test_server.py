@@ -160,3 +160,15 @@ async def test_protocol_list_and_call():
         assert not res.isError and "FitNow" in res.content[0].text
         bad = await client.call_tool("review_fetch", {"app_id": "111", "country": "turkey"})
         assert bad.isError  # schema validation rejects 3+ letter country
+
+
+def test_turkish_filler_words_are_not_complaint_terms():
+    from review_miner.models import Review
+    neg = [Review("appstore", "1", t, rating=1) for t in [
+        "Yani giriş yapamıyorum, böyle bir rezalet olmuş, hata veriyor",
+        "Yeni güncelleme berbat, giriş yapamıyorum yani, zaman kaybı, hata veriyor",
+        "Bana kod gelmiyor, giriş yapamıyorum, kötü, hata veriyor",
+    ]]
+    terms = {t["term"] for t in top_terms(neg, n=20)}
+    assert "giriş yapamıyorum" in terms and "hata veriyor" in terms
+    assert not terms & {"yani", "böyle", "olmuş", "yeni", "zaman", "berbat", "kötü", "rezalet", "bana"}

@@ -303,6 +303,7 @@ def main() -> None:
     import logging
 
     logging.getLogger("httpx").setLevel(logging.WARNING)  # keep stderr quiet
+    logging.getLogger("mcp").setLevel(logging.WARNING)    # no "Processing request" line per call
     mcp.run()
 
 

@@ -32,6 +32,9 @@ tried try trying makes making means feels years year days day off anymore alread
 said says thing someone anyone keep kept give gave take took put come came
 rağmen niye ayrıca asla tekrar sadece hala hâlâ bunu şimdi lütfen gerçekten zaten
 uygulamayı uygulamada uygulamanın uygulamaya aldım yine hiçbir diğer bazı olduğu
+yani böyle öyle şöyle olmuş oldu olsun olur zaman yeni değil bana beni benim bizim sizin
+kötü berbat rezalet iyi güzel harika süper tane gün günü yıl yıldır yıllardır şekilde
+lazım gerek bence cidden resmen falan filan bide birde teşekkürler
 """.split())
 _APOSTROPHE = re.compile(r"(?<=\w)['’](?=\w)")
 
