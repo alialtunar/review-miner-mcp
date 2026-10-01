@@ -32,7 +32,7 @@ Claude: [review_top_apps → review_compare_apps]
 flowchart LR
     C[Claude / MCP client] -->|tool call| S[review-miner-mcp]
     S --> A[Apple iTunes Search + RSS]
-    S --> T[Steam Store API]
+    S --> T[Steam Store + Web API]
     S --> X[Stats: rating mix, per-version rating,<br/>top complaint phrases]
     X -->|compact summary + best review samples| C
 ```
@@ -64,7 +64,7 @@ claude mcp add review-miner -- uvx --from git+https://github.com/alialtunar/revi
 
 | Tool | What it does |
 |---|---|
-| `review_top_apps` | Current top charts: App Store by category (free / paid / grossing) or Steam top sellers / new releases |
+| `review_top_apps` | Current top charts: App Store by category (free / paid / grossing) or Steam weekly top sellers / most played / new releases |
 | `review_search_apps` | Find an app or game and get its ID |
 | `review_fetch` | Recent reviews for one app: rating mix, rating per version, top complaint phrases, most helpful texts |
 | `review_compare_apps` | 2–8 competitors side by side, App Store and Steam mixed |

@@ -71,8 +71,25 @@ async def test_steam_negative_fetch_still_has_overall_score():
     assert summary.rating == 60.0 and all(r.recommended is False for r in reviews)
 
 
-async def test_steam_top_dedupes_and_drops_hardware_and_packages():
+async def test_steam_top_sellers_use_weekly_chart_without_dlc_or_hardware():
     apps = await steam.top_games("us", "top_sellers", 10)
+    assert [a.name for a in apps] == ["EA SPORTS FC 27", "Counter-Strike 2", "Cyberpunk 2077"]
+    assert [a.rank for a in apps] == [1, 2, 3]
+    assert apps[0].price == "$69.99" and apps[1].price == "Free"
+
+
+async def test_steam_most_played_resolves_names_and_drops_hardware():
+    apps = await steam.top_games("us", "most_played", 10)
+    assert [a.name for a in apps] == ["Counter-Strike 2", "Dota 2", "Cyberpunk 2077"]
+
+
+async def test_steam_rejects_unknown_chart():
+    with pytest.raises(SourceError, match="most_played"):
+        await steam.top_games("us", "best_ever", 10)
+
+
+async def test_steam_top_sellers_fall_back_to_store_page_when_web_api_fails():
+    apps = await steam.top_games("zz", "top_sellers", 10)
     assert [a.app_id for a in apps] == ["730", "1091500"]
     assert apps[0].price == "Free"
 

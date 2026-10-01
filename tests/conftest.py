@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import httpx
 import pytest
 
@@ -89,8 +91,49 @@ def steam_page(cursor: str, review_type: str, per_page: str):
     return {"success": 1, "cursor": "AoJ1", "reviews": [], "query_summary": {"num_reviews": 0}}
 
 
+# Steam Web API (IStoreTopSellersService / ISteamChartsService / IStoreBrowseService).
+# Real types: 0 = game, 4 = DLC, 10 = hardware. Free games have no best_purchase_option.
+def steam_item(appid: int, name: str, kind: int = 0, price: str | None = None):
+    item = {"item_type": 0, "id": appid, "appid": appid, "success": 1, "visible": True, "name": name, "type": kind}
+    if price:
+        item["best_purchase_option"] = {"formatted_final_price": price}
+    else:
+        item["is_free"] = True
+    return item
+
+
+STEAM_ITEMS = {
+    4080220: steam_item(4080220, "EA SPORTS FC 27", price="$69.99"),
+    730: steam_item(730, "Counter-Strike 2"),
+    1675200: steam_item(1675200, "Steam Deck", kind=10, price="$399.00"),
+    2611230: steam_item(2611230, "American Truck Simulator - South Dakota", kind=4, price="$11.99"),
+    1091500: steam_item(1091500, "Cyberpunk 2077", price="$59.99"),
+    570: steam_item(570, "Dota 2"),
+}
+STEAM_WEEKLY = [4080220, 730, 1675200, 2611230, 1091500]
+STEAM_MOST_PLAYED = [730, 570, 1675200, 1091500]
+
+
+def steam_webapi(url: str, p) -> httpx.Response:
+    req = json.loads(p.get("input_json", "{}"))
+    if "GetWeeklyTopSellers" in url:
+        if req.get("country_code") == "ZZ":  # simulate the Web API being down
+            return httpx.Response(403)
+        ranks = [{"rank": i + 1, "appid": a, "item": STEAM_ITEMS[a]} for i, a in enumerate(STEAM_WEEKLY)]
+        return httpx.Response(200, json={"response": {"ranks": ranks[: req.get("page_count", 20)]}})
+    if "GetMostPlayedGames" in url:
+        return httpx.Response(200, json={"response": {"ranks": [
+            {"rank": i + 1, "appid": a, "peak_in_game": 1000 - i} for i, a in enumerate(STEAM_MOST_PLAYED)]}})
+    if "GetItems" in url:
+        ids = [i["appid"] for i in req.get("ids", [])]
+        return httpx.Response(200, json={"response": {"store_items": [STEAM_ITEMS[i] for i in ids if i in STEAM_ITEMS]}})
+    return httpx.Response(500)
+
+
 def handler(request: httpx.Request) -> httpx.Response:
     url, p = str(request.url), request.url.params
+    if url.startswith("https://api.steampowered.com/"):
+        return steam_webapi(url, p)
     if "customerreviews" in url:
         page = int(url.split("page=")[1].split("/")[0])
         app_id = url.split("id=")[1].split("/")[0]

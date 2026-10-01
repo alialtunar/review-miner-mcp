@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-
+import json
 from typing import Any, Literal
 
 from .http import SourceError, get_json
@@ -13,6 +13,10 @@ SOURCE = "Steam"
 PAGE_SIZE = 100
 
 ReviewType = Literal["all", "positive", "negative"]
+
+CHARTS = ("top_sellers", "most_played", "new_releases")
+WEB_API = "https://api.steampowered.com"
+_GAME = 0  # Steam Web API item types: 0 game, 4 DLC, 10 hardware
 
 
 def _price(cents: Any, currency: str = "USD") -> str:
@@ -44,9 +48,79 @@ async def search_games(query: str, country: str, limit: int) -> list[App]:
 
 
 async def top_games(country: str, list_name: str, limit: int) -> list[App]:
-    """list_name: 'top_sellers' or 'new_releases' from the store's featured categories."""
-    if list_name not in ("top_sellers", "new_releases"):
-        raise SourceError("Steam list must be 'top_sellers' or 'new_releases'.")
+    """Ranked games from Steam's charts. DLC, hardware and bundles are dropped.
+
+    top_sellers: weekly top sellers by revenue (up to 100, official Web API).
+    most_played: most concurrent players (up to 100, official Web API).
+    new_releases: the store front page's new releases (~30).
+    """
+    if list_name not in CHARTS:
+        raise SourceError(f"Steam chart must be one of {', '.join(CHARTS)}.")
+    if list_name == "most_played":
+        return await _most_played(country, limit)
+    if list_name == "top_sellers":
+        try:
+            return await _weekly_top_sellers(country, limit)
+        except SourceError:
+            pass  # the Web API is down or changed: fall back to the store front page
+    return await _featured(country, list_name, limit)
+
+
+def _web_api_params(request: dict[str, Any]) -> dict[str, str]:
+    return {"input_json": json.dumps(request, separators=(",", ":"))}
+
+
+def _context(country: str) -> dict[str, str]:
+    return {"language": "english", "country_code": country.upper()}
+
+
+def _app_from_item(item: dict[str, Any], rank: int) -> App:
+    price = "Free" if item.get("is_free") else (item.get("best_purchase_option") or {}).get("formatted_final_price", "")
+    return App(store="steam", app_id=str(item.get("appid", "")), name=item.get("name", ""), price=price, rank=rank)
+
+
+def _ranked_games(items: list[dict[str, Any]], limit: int) -> list[App]:
+    apps: list[App] = []
+    for item in items:
+        if item.get("type", _GAME) != _GAME or not item.get("name") or item.get("visible") is False:
+            continue
+        apps.append(_app_from_item(item, len(apps) + 1))
+        if len(apps) >= limit:
+            break
+    return apps
+
+
+async def _weekly_top_sellers(country: str, limit: int) -> list[App]:
+    data = await get_json(
+        f"{WEB_API}/IStoreTopSellersService/GetWeeklyTopSellers/v1/",
+        _web_api_params({"country_code": country.upper(), "context": _context(country),
+                         "data_request": {}, "page_count": min(100, limit + 15)}),
+        source=SOURCE,
+    )
+    ranks = data.get("response", {}).get("ranks", [])
+    if not ranks:
+        raise SourceError("Steam's weekly top sellers came back empty.")
+    return _ranked_games([r.get("item", {}) for r in ranks], limit)
+
+
+async def _most_played(country: str, limit: int) -> list[App]:
+    data = await get_json(f"{WEB_API}/ISteamChartsService/GetMostPlayedGames/v1/", source=SOURCE)
+    appids = [r["appid"] for r in data.get("response", {}).get("ranks", []) if r.get("appid")]
+    if not appids:
+        raise SourceError("Steam's most played chart came back empty. Try chart='top_sellers'.")
+    appids = appids[: min(100, limit + 15)]
+    items = await get_json(
+        f"{WEB_API}/IStoreBrowseService/GetItems/v1/",
+        _web_api_params({"ids": [{"appid": a} for a in appids], "context": _context(country),
+                         "data_request": {}}),
+        source=SOURCE,
+    )
+    by_id = {i.get("appid"): i for i in items.get("response", {}).get("store_items", [])}
+    return _ranked_games([by_id[a] for a in appids if a in by_id], limit)
+
+
+async def _featured(country: str, list_name: str, limit: int) -> list[App]:
+    """The store front page lists (~10 top sellers, ~30 new releases). Needs appdetails to drop non-games."""
     data = await get_json(
         "https://store.steampowered.com/api/featuredcategories",
         {"cc": country.upper(), "l": "english"},

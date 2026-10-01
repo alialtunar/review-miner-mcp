@@ -125,17 +125,17 @@ async def review_top_apps(
     store: Annotated[StoreName, Field(description="'appstore' or 'steam'.")] = "appstore",
     category: Annotated[str | None, Field(description="App Store only, e.g. 'health-fitness', 'finance', 'games', 'productivity'. Omit for all.")] = None,
     country: Country = "us",
-    chart: Annotated[str, Field(description="App Store: 'free' | 'paid' | 'grossing'. Steam: 'top_sellers' | 'new_releases'.")] = "free",
+    chart: Annotated[str, Field(description="App Store: 'free' | 'paid' | 'grossing'. Steam: 'top_sellers' | 'most_played' | 'new_releases'.")] = "free",
     limit: Annotated[int, Field(ge=1, le=100)] = 25,
     response_format: Format = "markdown",
 ) -> str:
-    """List the current top charts (App Store by category, or Steam top sellers / new releases).
+    """List the current top charts (App Store by category, or Steam top sellers / most played / new releases).
     Use this to pick competitors before fetching their reviews."""
     try:
         if store == "appstore":
             apps = await appstore.top_apps(category, country.lower(), chart, limit)
         else:
-            steam_chart = chart if chart in ("top_sellers", "new_releases") else "top_sellers"
+            steam_chart = chart if chart in steam.CHARTS else "top_sellers"
             apps = await steam.top_games(country, steam_chart, limit)
     except Exception as e:
         return _error(e)
