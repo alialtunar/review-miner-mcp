@@ -14,7 +14,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
-from . import appstore, steam
+from . import __version__, appstore, steam
 from .analysis import pick_samples, summarize
 from .http import SourceError
 from .models import App, Review
@@ -28,6 +28,8 @@ mcp = FastMCP(
         "Stats are computed over all fetched reviews; only a sample of texts is returned."
     ),
 )
+
+mcp._mcp_server.version = __version__  # FastMCP 1.x has no version arg; otherwise clients see the SDK version
 
 READ_ONLY = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=True)
 

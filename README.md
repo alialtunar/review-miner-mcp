@@ -1,5 +1,7 @@
 # review-miner-mcp
 
+<!-- mcp-name: io.github.alialtunar/review-miner-mcp -->
+
 **Find out what users hate about your competitors.** An MCP server that mines public **App Store** and **Steam** reviews so Claude (or any MCP client) can turn thousands of complaints into product opportunities.
 
 No API keys. No scraping. One line to install.

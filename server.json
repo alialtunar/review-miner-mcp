@@ -1,0 +1,18 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.alialtunar/review-miner-mcp",
+  "title": "Review Miner",
+  "description": "Find what users hate about competing apps and games: App Store and Steam reviews. No API keys.",
+  "repository": { "url": "https://github.com/alialtunar/review-miner-mcp", "source": "github" },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "review-miner-mcp",
+      "version": "0.1.0",
+      "runtimeHint": "uvx",
+      "transport": { "type": "stdio" }
+    }
+  ]
+}

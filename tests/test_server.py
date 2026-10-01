@@ -189,3 +189,10 @@ def test_turkish_filler_words_are_not_complaint_terms():
     terms = {t["term"] for t in top_terms(neg, n=20)}
     assert "giriş yapamıyorum" in terms and "hata veriyor" in terms
     assert not terms & {"yani", "böyle", "olmuş", "yeni", "zaman", "berbat", "kötü", "rezalet", "bana"}
+
+
+async def test_server_reports_its_own_version():
+    from review_miner import __version__
+    async with create_connected_server_and_client_session(mcp._mcp_server) as client:
+        info = await client.initialize()
+        assert info.serverInfo.version == __version__
