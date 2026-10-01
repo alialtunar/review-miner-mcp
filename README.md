@@ -47,7 +47,7 @@ Requires [uv](https://docs.astral.sh/uv/).
 
 **Claude Code**
 ```bash
-claude mcp add review-miner -- uvx --from git+https://github.com/alialtunar/review-miner-mcp review-miner-mcp
+claude mcp add review-miner -- uvx review-miner-mcp
 ```
 
 **Claude Desktop / Cursor** (`claude_desktop_config.json` / `.cursor/mcp.json`)
@@ -56,7 +56,7 @@ claude mcp add review-miner -- uvx --from git+https://github.com/alialtunar/revi
   "mcpServers": {
     "review-miner": {
       "command": "uvx",
-      "args": ["--from", "git+https://github.com/alialtunar/review-miner-mcp", "review-miner-mcp"]
+      "args": ["review-miner-mcp"]
     }
   }
 }
