@@ -24,6 +24,29 @@ async def test_appstore_reviews_respect_max():
     assert len(await appstore.fetch_reviews("111", "us", 30)) == 30
 
 
+async def test_appstore_falls_back_to_other_url_spellings(mock_network):
+    reviews = await appstore.fetch_reviews("333", "us", 500)
+    assert len(reviews) == 100
+    assert len({(r.date, r.text, r.rating, r.helpful_votes, r.title) for r in reviews}) > 1
+    assert any("sortby=mostrecent/json" in u for u in mock_network)  # primary tried first
+
+
+async def test_appstore_dedupes_reviews_across_spellings():
+    reviews = await appstore.fetch_reviews("333", "us", 500)
+    assert len({r.review_id for r in reviews}) == len(reviews)
+
+
+async def test_appstore_empty_feed_is_explained_not_hidden():
+    with pytest.raises(SourceError, match="empty"):
+        await appstore.fetch_reviews("444", "us", 100)
+
+
+async def test_compare_reports_empty_apple_feed_honestly():
+    out = await review_compare_apps(apps=["appstore:444", "steam:1091500"])
+    assert "no recent reviews" not in out
+    assert "empty" in out
+
+
 async def test_appstore_rejects_non_numeric_id():
     with pytest.raises(SourceError, match="numeric"):
         await appstore.fetch_reviews("duolingo", "us", 50)

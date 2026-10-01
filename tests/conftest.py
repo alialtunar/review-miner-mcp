@@ -96,6 +96,9 @@ def handler(request: httpx.Request) -> httpx.Response:
         app_id = url.split("id=")[1].split("/")[0]
         if app_id == "404404":
             return httpx.Response(404)
+        # Real feed is flaky: some URL spellings return an empty feed while others are full.
+        if app_id == "444" or (app_id == "333" and "sortby=mostrecent/json" in url):
+            return httpx.Response(200, json={"feed": {"author": {}}})
         return httpx.Response(200, json=apple_reviews_page(page))
     if "/rss/top" in url:
         return httpx.Response(200, json=APPLE_TOP)

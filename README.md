@@ -76,6 +76,7 @@ Every tool supports `country` (e.g. `tr`, `de`, `us`) and `response_format` (`ma
 ## Limits (set by the sources)
 
 - App Store: most recent ~500 reviews per country (Apple's feed limit).
+- App Store: Apple's review feed is sometimes empty for an app/country for a while. The server retries equivalent feed URLs automatically; if all are empty it tells you so instead of reporting "no reviews". Retrying a few minutes later or trying another country usually works.
 - Steam: most recent reviews, filtered by language (`english`, `turkish`, `all`...).
 - Results are cached for 15 minutes; concurrency is capped to stay polite.
 

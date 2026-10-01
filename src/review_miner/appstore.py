@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from .http import SourceError, get_json
@@ -9,6 +10,22 @@ from .models import App, Review
 
 SOURCE = "Apple App Store"
 MAX_REVIEW_PAGES = 10  # Apple's review RSS stops at 10 pages x 50 reviews
+
+# Equivalent spellings of the most-recent review feed. Apple caches each URL path separately and
+# some caches hold an empty feed for hours, so when one spelling is empty another is often full.
+# All of these return identical entries when non-empty (verified 2026-10-01).
+def _review_feed_spellings(limit: int = 16) -> tuple[str, ...]:
+    sorts = [f"{k}={v}" for v in ("mostrecent", "mostRecent", "MostRecent", "MOSTRECENT")
+             for k in ("sortby", "sortBy", "SortBy", "SORTBY")]
+    spellings = ["sortby=mostrecent/json", "json", "sortBy=mostRecent/json", "limit=50/sortby=mostrecent/json",
+                 "sortby=mostrecent/limit=50/json", "limit=50/sortBy=mostRecent/json", "limit=50/json"]
+    for sort in sorts:
+        spellings += [f"{sort}/json", f"limit=50/{sort}/json", f"{sort}/limit=50/json"]
+    return tuple(dict.fromkeys(spellings))[:limit]
+
+
+REVIEW_FEED_SPELLINGS = _review_feed_spellings()
+SPELLINGS_PER_BATCH = 4  # matches the HTTP layer's concurrency limit
 
 GENRES: dict[str, int] = {
     "books": 6018, "business": 6000, "developer-tools": 6026, "education": 6017,
@@ -105,19 +122,43 @@ async def fetch_reviews(app_id: str, country: str, max_reviews: int) -> list[Rev
     if not app_id.isdigit():
         raise SourceError("App Store app_id must be numeric (e.g. '389801252'). Use review_search_apps to find it.")
     reviews: list[Review] = []
+    seen: set[str] = set()
     for page in range(1, MAX_REVIEW_PAGES + 1):
-        url = f"https://itunes.apple.com/{country}/rss/customerreviews/page={page}/id={app_id}/sortby=mostrecent/json"
-        data = await get_json(url, source=SOURCE)
-        entries = data.get("feed", {}).get("entry", [])
-        if isinstance(entries, dict):
-            entries = [entries]
-        page_reviews = [r for r in (_review_from_entry(e, app_id) for e in entries) if r]
+        page_reviews = await _fetch_review_page(app_id, country, page)
         if not page_reviews:
             break
-        reviews.extend(page_reviews)
+        for r in page_reviews:
+            if r.review_id not in seen:
+                seen.add(r.review_id)
+                reviews.append(r)
         if len(reviews) >= max_reviews:
             break
+    if not reviews:
+        raise SourceError(
+            f"Apple's review feed came back empty for app {app_id} in the {country.upper()} store. "
+            "Either the app has no written reviews there, or Apple's feed is temporarily empty "
+            "(this happens). Retry in a few minutes or try another country such as 'us' or 'gb'."
+        )
     return reviews[:max_reviews]
+
+
+async def _fetch_review_page(app_id: str, country: str, page: int) -> list[Review]:
+    """One page of 50 reviews, trying URL spellings 4 at a time until one is non-empty."""
+    base = f"https://itunes.apple.com/{country}/rss/customerreviews/page={page}/id={app_id}"
+    for i in range(0, len(REVIEW_FEED_SPELLINGS), SPELLINGS_PER_BATCH):
+        batch = REVIEW_FEED_SPELLINGS[i:i + SPELLINGS_PER_BATCH]
+        for data in await asyncio.gather(*(get_json(f"{base}/{s}", source=SOURCE, cache_if=_has_entries) for s in batch)):
+            entries = data.get("feed", {}).get("entry", [])
+            if isinstance(entries, dict):
+                entries = [entries]
+            page_reviews = [r for r in (_review_from_entry(e, app_id) for e in entries) if r]
+            if page_reviews:
+                return page_reviews
+    return []
+
+
+def _has_entries(data: object) -> bool:
+    return isinstance(data, dict) and bool(data.get("feed", {}).get("entry"))
 
 
 def _review_from_entry(e: dict[str, Any], app_id: str) -> Review | None:
@@ -128,6 +169,7 @@ def _review_from_entry(e: dict[str, Any], app_id: str) -> Review | None:
     return Review(
         store="appstore",
         app_id=app_id,
+        review_id=_label(e.get("id")),
         rating=int(rating),
         title=_label(e.get("title")),
         text=_label(e.get("content")),

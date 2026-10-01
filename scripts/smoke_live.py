@@ -24,7 +24,8 @@ async def main() -> int:
     failed = 0
     for name, fn, kwargs in CHECKS:
         out = await fn(**kwargs)
-        ok = not out.startswith("Error") and len(out) > 80
+        # An empty Apple feed inside a comparison row must fail too, not just a top-level error.
+        ok = not out.startswith("Error") and len(out) > 80 and "feed came back empty" not in out
         failed += not ok
         print(f"{'PASS' if ok else 'FAIL'}  {name}")
         print("      " + out.replace("\n", "\n      ")[:600] + ("\n      …" if len(out) > 600 else ""))

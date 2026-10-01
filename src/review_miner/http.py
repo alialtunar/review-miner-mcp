@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any
+from typing import Any, Callable
 
 import httpx
 
@@ -41,8 +41,10 @@ def _cache_key(url: str, params: dict[str, Any] | None) -> str:
     return url + "?" + "&".join(f"{k}={params[k]}" for k in sorted(params))
 
 
-async def get_json(url: str, params: dict[str, Any] | None = None, source: str = "source") -> Any:
-    """GET a JSON document with caching and a single retry on 429/5xx."""
+async def get_json(url: str, params: dict[str, Any] | None = None, source: str = "source",
+                   cache_if: Callable[[Any], bool] | None = None) -> Any:
+    """GET a JSON document with caching and a single retry on 429/5xx.
+    cache_if lets callers skip caching responses that are worth retrying later (e.g. empty feeds)."""
     key = _cache_key(url, params)
     hit = _cache.get(key)
     if hit and time.monotonic() - hit[0] < CACHE_TTL_SECONDS:
@@ -78,6 +80,7 @@ async def get_json(url: str, params: dict[str, Any] | None = None, source: str =
                     data = resp.json()
                 except ValueError as e:
                     raise SourceError(f"{source} returned something that is not JSON (maybe the ID or country is invalid).") from e
-                _cache[key] = (time.monotonic(), data)
+                if cache_if is None or cache_if(data):
+                    _cache[key] = (time.monotonic(), data)
                 return data
     raise SourceError(f"{source} request failed.")  # pragma: no cover

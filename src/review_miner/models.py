@@ -39,6 +39,7 @@ class Review:
     date: str | None = None
     helpful_votes: int = 0
     playtime_hours: float | None = None
+    review_id: str = ""                # store's own ID, used for de-duplication only
 
     @property
     def is_negative(self) -> bool:
@@ -48,7 +49,7 @@ class Review:
 
     def to_dict(self, max_chars: int = 400) -> dict[str, Any]:
         d = {k: v for k, v in asdict(self).items()
-             if not (v is None or v == "" or (v == 0 and not isinstance(v, bool)))}
+             if k != "review_id" and not (v is None or v == "" or (v == 0 and not isinstance(v, bool)))}
         if len(self.text) > max_chars:
             d["text"] = self.text[:max_chars].rstrip() + "…"
         return d
