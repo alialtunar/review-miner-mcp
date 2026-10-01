@@ -10,7 +10,7 @@ import asyncio
 import json
 from typing import Annotated, Any, Literal
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
@@ -19,8 +19,9 @@ from .analysis import pick_samples, summarize
 from .http import SourceError
 from .models import App, Review
 
-mcp = FastMCP(
+mcp = MCPServer(
     "review_miner_mcp",
+    version=__version__,
     instructions=(
         "Mine public App Store and Steam reviews. Typical flow: review_top_apps or "
         "review_search_apps to get IDs -> review_fetch for one app or review_compare_apps "
@@ -29,9 +30,7 @@ mcp = FastMCP(
     ),
 )
 
-mcp._mcp_server.version = __version__  # FastMCP 1.x has no version arg; otherwise clients see the SDK version
-
-READ_ONLY = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=True)
+READ_ONLY = ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=True)
 
 StoreName = Literal["appstore", "steam"]
 Country = Annotated[str, Field(pattern=r"^[A-Za-z]{2}$", description="2-letter store country, e.g. 'us', 'tr', 'de'.")]

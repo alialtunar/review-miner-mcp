@@ -1,7 +1,7 @@
 import json
 
 import pytest
-from mcp.shared.memory import create_connected_server_and_client_session
+from mcp.client import Client
 
 from review_miner import appstore, steam
 from review_miner.analysis import summarize, top_terms
@@ -167,16 +167,16 @@ async def test_cache_avoids_duplicate_calls(mock_network):
 # ---- MCP protocol end-to-end ----
 
 async def test_protocol_list_and_call():
-    async with create_connected_server_and_client_session(mcp._mcp_server) as client:
+    async with Client(mcp) as client:
         tools = {t.name: t for t in (await client.list_tools()).tools}
         assert set(tools) == {"review_top_apps", "review_search_apps", "review_fetch", "review_compare_apps"}
-        assert tools["review_fetch"].annotations.readOnlyHint is True
+        assert tools["review_fetch"].annotations.read_only_hint is True
         prompts = {p.name for p in (await client.list_prompts()).prompts}
         assert prompts == {"find_opportunities", "competitor_teardown"}
         res = await client.call_tool("review_fetch", {"app_id": "appstore:111", "max_reviews": 50, "sample_size": 3})
-        assert not res.isError and "FitNow" in res.content[0].text
+        assert not res.is_error and "FitNow" in res.content[0].text
         bad = await client.call_tool("review_fetch", {"app_id": "111", "country": "turkey"})
-        assert bad.isError  # schema validation rejects 3+ letter country
+        assert bad.is_error  # schema validation rejects 3+ letter country
 
 
 def test_turkish_filler_words_are_not_complaint_terms():
@@ -193,6 +193,5 @@ def test_turkish_filler_words_are_not_complaint_terms():
 
 async def test_server_reports_its_own_version():
     from review_miner import __version__
-    async with create_connected_server_and_client_session(mcp._mcp_server) as client:
-        info = await client.initialize()
-        assert info.serverInfo.version == __version__
+    async with Client(mcp) as client:
+        assert client.server_info.version == __version__
