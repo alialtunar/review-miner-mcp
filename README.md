@@ -5,11 +5,18 @@
 No API keys. No scraping. One line to install.
 
 ```
-You:    What do people hate about the top 5 meditation apps in Turkey?
+You:    What do users hate about the top health & fitness apps in Turkey?
 Claude: [review_top_apps → review_compare_apps]
-        4 of 5 apps get the same complaint: the subscription is hard to cancel.
-        3 of 5: no offline mode. Only 1 has Turkish voice content...
+        • Strava: the most upvoted complaints ask for Turkish. "I was going to buy
+          Premium but I'm deleting it because there is no Turkish support."
+        • OKOK (smart scale): 61% of recent reviews are negative. You have to watch
+          ads before the app shows your own weight.
+        • MAC+: login and verification-code errors ("hata veriyor") dominate.
+        • HUAWEI Health: can't log in after switching phones or after updates.
 ```
+<sub>Summarized from real tool output: Turkish App Store, 1 Oct 2026, 150 recent reviews per app.</sub>
+
+![Top 5 Turkish health & fitness apps compared by review-miner](docs/demo.gif)
 
 ## Why
 
@@ -87,6 +94,7 @@ uv sync --extra dev
 uv run pytest                          # offline tests with mocked APIs
 uv run python scripts/smoke_live.py    # live check against Apple and Steam
 npx @modelcontextprotocol/inspector uv run review-miner-mcp   # click-through UI
+uv run --with rich python scripts/demo.py finance tr        # terminal demo (vhs docs/demo.tape records the GIF)
 ```
 
 MIT © Ali Altunar
